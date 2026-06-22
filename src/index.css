@@ -1,0 +1,37 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --rk-orange: #cf731b;
+  --rk-orange-dark: #b86218;
+  --rk-black: #000000;
+  --rk-white: #ffffff;
+  --rk-mireia-color: #cf731b;
+  --rk-mireia-bg: #faeeda;
+  --rk-mireia-text: #633806;
+  --rk-vicky-color: #185fa5;
+  --rk-vicky-bg: #e6f1fb;
+  --rk-vicky-text: #042c53;
+  --rk-border: rgba(0,0,0,0.1);
+  --rk-bg: #f5f4f0;
+  --rk-surface: #ffffff;
+  --rk-muted: #6b6b6b;
+  --rk-text: #111111;
+  --rk-radius: 10px;
+  --rk-radius-sm: 6px;
+}
+
+body {
+  font-family: 'Montserrat', -apple-system, sans-serif;
+  background: var(--rk-bg);
+  color: var(--rk-text);
+  min-height: 100vh;
+}
+
+button { font-family: 'Montserrat', sans-serif; cursor: pointer; }
+input, select { font-family: 'Montserrat', sans-serif; }
+
+input:focus, select:focus {
+  outline: 2px solid var(--rk-orange);
+  outline-offset: 1px;
+  border-color: transparent !important;
+}
