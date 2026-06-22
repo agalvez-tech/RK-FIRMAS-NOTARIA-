@@ -1,6 +1,6 @@
-// api/firmas.js  — Vercel Serverless Function
-// Requiere: Vercel KV conectado al proyecto (Settings → Storage → KV)
-// Variable de entorno añadida automáticamente por Vercel: KV_REST_API_URL, KV_REST_API_TOKEN
+// api/firmas.js — Vercel Serverless Function
+// Requiere: Upstash for Redis conectado al proyecto en Vercel → Storage
+// Variables añadidas automáticamente: UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
 
 const KV_KEY = 'rk_firmas_notaria_v1'
 
@@ -30,20 +30,19 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end()
 
-  // Verificar PIN para operaciones de escritura
   const EDITOR_PIN = process.env.RK_FIRMAS_PIN || '1976'
   const pin = req.headers['x-rk-pin']
 
   if (req.method === 'GET') {
-    // Lectura: libre para todo el equipo
     const firmas = await kvGet()
     return res.status(200).json({ ok: true, firmas })
   }
 
   if (req.method === 'POST') {
-    // Escritura: requiere PIN
     if (pin !== EDITOR_PIN) return res.status(401).json({ ok: false, error: 'PIN incorrecto' })
     const { firma } = req.body
+    // Ignorar llamadas de test
+    if (firma.__test) return res.status(200).json({ ok: true, firmas: await kvGet() })
     const firmas = await kvGet()
     firmas.push(firma)
     await kvSet(firmas)
@@ -51,7 +50,6 @@ export default async function handler(req, res) {
   }
 
   if (req.method === 'DELETE') {
-    // Borrado: requiere PIN
     if (pin !== EDITOR_PIN) return res.status(401).json({ ok: false, error: 'PIN incorrecto' })
     const { id } = req.body
     const firmas = (await kvGet()).filter(f => f.id !== id)
