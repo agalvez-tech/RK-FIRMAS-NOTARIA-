@@ -3,27 +3,32 @@ const KV_KEY = 'rk_firmas_notaria_v1'
 async function kvGet() {
   const url = process.env.KV_REST_API_URL
   const token = process.env.KV_REST_API_TOKEN
-  if (!url || !token) throw new Error('KV vars missing: url=' + !!url + ' token=' + !!token)
+  if (!url || !token) throw new Error('KV vars missing')
   const res = await fetch(`${url}/get/${KV_KEY}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   if (!res.ok) throw new Error('KV GET failed: ' + res.status)
   const json = await res.json()
   if (!json.result) return []
-  return JSON.parse(json.result)
+  // Puede venir como string simple o doblemente serializado
+  let data = json.result
+  if (typeof data === 'string') { try { data = JSON.parse(data) } catch { return [] } }
+  if (typeof data === 'string') { try { data = JSON.parse(data) } catch { return [] } }
+  return Array.isArray(data) ? data : []
 }
 
 async function kvSet(data) {
   const url = process.env.KV_REST_API_URL
   const token = process.env.KV_REST_API_TOKEN
   if (!url || !token) throw new Error('KV vars missing')
+  // Upstash REST SET: POST /set/<key> con body = el valor como string
   const res = await fetch(`${url}/set/${KV_KEY}`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify(JSON.stringify(data)),
+    body: JSON.stringify(JSON.stringify(data)),  // Upstash necesita el valor como string JSON-encoded
   })
   if (!res.ok) throw new Error('KV SET failed: ' + res.status)
 }
@@ -55,9 +60,8 @@ module.exports = async function handler(req, res) {
       const firmas = await kvGet()
       return res.status(200).json({ ok: true, firmas })
     } catch (err) {
-      console.error('[GET] KV error:', err.message)
-      // Devolver array vacío con info del error para no romper la app
-      return res.status(200).json({ ok: true, firmas: [], _debug: err.message })
+      console.error('[GET] error:', err.message)
+      return res.status(200).json({ ok: true, firmas: [] })
     }
   }
 
@@ -68,8 +72,8 @@ module.exports = async function handler(req, res) {
       if (pin !== EDITOR_PIN) return res.status(401).json({ ok: false, error: 'PIN incorrecto' })
       const firma = body.firma
       if (!firma || firma.__test) {
-        try { const firmas = await kvGet(); return res.status(200).json({ ok: true, firmas }) }
-        catch { return res.status(200).json({ ok: true, firmas: [] }) }
+        const firmas = await kvGet().catch(() => [])
+        return res.status(200).json({ ok: true, firmas })
       }
       const firmas = await kvGet()
       firmas.push(firma)
@@ -89,7 +93,7 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'Method not allowed' })
 
   } catch (err) {
-    console.error('[API] Error:', err.message)
+    console.error('[API] error:', err.message)
     return res.status(500).json({ ok: false, error: err.message, firmas: [] })
   }
 }
