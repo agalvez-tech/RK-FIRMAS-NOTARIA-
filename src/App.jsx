@@ -22,6 +22,7 @@ function monthLabel(m, y) {
 
 function useFiremas() {
   const [firmas, setFirmas] = useState([])
+  // firmas siempre es array gracias a los guards en setFirmas
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -36,7 +37,7 @@ function useFiremas() {
       }
       const json = await r.json()
       if (json._debug) console.warn('[KV debug]', json._debug)
-      setFirmas(json.firmas || [])
+      setFirmas(Array.isArray(json.firmas) ? json.firmas : [])
       setError(null)
     } catch (e) {
       setError('Red: ' + (e.message || 'sin conexión'))
@@ -61,7 +62,7 @@ function useFiremas() {
     })
     const json = await r.json()
     if (!json.ok) throw new Error(json.error)
-    setFirmas(json.firmas)
+    setFirmas(Array.isArray(json.firmas) ? json.firmas : [])
   }
 
   const deleteFirma = async (id, pin) => {
@@ -72,7 +73,7 @@ function useFiremas() {
     })
     const json = await r.json()
     if (!json.ok) throw new Error(json.error)
-    setFirmas(json.firmas)
+    setFirmas(Array.isArray(json.firmas) ? json.firmas : [])
   }
 
   return { firmas, loading, error, addFirma, deleteFirma, refresh: fetchFirmas }
@@ -336,13 +337,14 @@ export default function App() {
   const [isEditor, setIsEditor] = useState(false)
   const [search, setSearch] = useState('')
 
-  const mFirmas = firmas.filter(f => f.year === year && f.month === month)
+  const firmasArr = Array.isArray(firmas) ? firmas : []
+  const mFirmas = firmasArr.filter(f => f.year === year && f.month === month)
   const total = mFirmas.length
 
   // Búsqueda global en todas las firmas
   const searchQuery = search.trim().toLowerCase()
   const searchResults = searchQuery.length >= 2
-    ? firmas.filter(f =>
+    ? firmasArr.filter(f =>
         (f.referencia || '').toLowerCase().includes(searchQuery) ||
         (f.captador || '').toLowerCase().includes(searchQuery) ||
         (f.comprador || '').toLowerCase().includes(searchQuery) ||
