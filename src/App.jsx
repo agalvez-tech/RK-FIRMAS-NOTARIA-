@@ -327,9 +327,25 @@ export default function App() {
   const [modal, setModal] = useState(null) // { type: 'pin'|'add'|'detail', ... }
   const [pin, setPin] = useState(sessionStorage.getItem('rk_firmas_pin') || '')
   const [isEditor, setIsEditor] = useState(false)
+  const [search, setSearch] = useState('')
 
   const mFirmas = firmas.filter(f => f.year === year && f.month === month)
   const total = mFirmas.length
+
+  // Búsqueda global en todas las firmas
+  const searchQuery = search.trim().toLowerCase()
+  const searchResults = searchQuery.length >= 2
+    ? firmas.filter(f =>
+        (f.referencia || '').toLowerCase().includes(searchQuery) ||
+        (f.captador || '').toLowerCase().includes(searchQuery) ||
+        (f.comprador || '').toLowerCase().includes(searchQuery) ||
+        (f.notaria || '').toLowerCase().includes(searchQuery)
+      ).sort((a, b) => {
+        const d1 = new Date(a.year, a.month, a.day)
+        const d2 = new Date(b.year, b.month, b.day)
+        return d1 - d2
+      })
+    : []
 
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }
   const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }
@@ -342,35 +358,13 @@ export default function App() {
     }
   }
 
-  const handlePinAccess = async (enteredPin) => {
-    // Intentamos hacer una petición de prueba — si el servidor la acepta, guardamos el PIN
-    try {
-      const r = await fetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-rk-pin': enteredPin },
-        body: JSON.stringify({ firma: { __test: true } }),
-      })
-      const json = await r.json()
-      if (json.ok || json.error !== 'PIN incorrecto') {
-        // PIN válido — refrescamos para eliminar el registro de test si se creó
-        // (el servidor ignorará la firma de test con __test:true si lo implementamos, o simplemente lo borramos)
-        setPin(enteredPin)
-        sessionStorage.setItem('rk_firmas_pin', enteredPin)
-        setIsEditor(true)
-        if (modal?.next) { modal.next(); return }
-        setModal(null)
-        refresh()
-      } else {
-        alert('PIN incorrecto')
-      }
-    } catch {
-      // Si no hay conexión, aceptamos el PIN localmente (se validará en cada operación)
-      setPin(enteredPin)
-      sessionStorage.setItem('rk_firmas_pin', enteredPin)
-      setIsEditor(true)
-      if (modal?.next) { modal.next(); return }
-      setModal(null)
-    }
+  const handlePinAccess = (enteredPin) => {
+    setPin(enteredPin)
+    sessionStorage.setItem('rk_firmas_pin', enteredPin)
+    setIsEditor(true)
+    const next = modal?.next
+    setModal(null)
+    if (next) next()
   }
 
   const openAdd = (day) => {
@@ -457,7 +451,74 @@ export default function App() {
         ))}
         {error && <span style={{ fontFamily: 'Montserrat', fontSize: 11, color: '#e24b4a', marginLeft: 'auto' }}>⚠ {error}</span>}
         {loading && <span style={{ fontFamily: 'Montserrat', fontSize: 11, color: '#6b6b6b', marginLeft: 'auto' }}>Cargando...</span>}
+        <div style={{ marginLeft: 'auto', position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <i className="ti ti-search" style={{ position: 'absolute', left: 10, fontSize: 14, color: search ? '#cf731b' : '#aaa', pointerEvents: 'none' }} />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar referencia, agente..."
+            style={{
+              fontFamily: 'Montserrat', fontSize: 12, paddingLeft: 30, paddingRight: search ? 28 : 12,
+              paddingTop: 7, paddingBottom: 7, border: `1px solid ${search ? '#cf731b' : 'rgba(0,0,0,0.15)'}`,
+              borderRadius: 20, width: 230, background: '#fff', color: '#111', outline: 'none',
+              transition: 'border-color 0.15s',
+            }}
+          />
+          {search && (
+            <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 8, background: 'none', border: 'none', cursor: 'pointer', color: '#aaa', fontSize: 14, display: 'flex', alignItems: 'center' }}>
+              <i className="ti ti-x" />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Panel de resultados de búsqueda */}
+      {searchQuery.length >= 2 && (
+        <div style={{ margin: '0 24px', background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderTop: 'none' }}>
+          {searchResults.length === 0 ? (
+            <div style={{ padding: '20px 24px', fontFamily: 'Montserrat', fontSize: 13, color: '#aaa', textAlign: 'center' }}>
+              <i className="ti ti-search-off" style={{ fontSize: 20, display: 'block', marginBottom: 6 }} />
+              Sin resultados para "<strong>{searchQuery}</strong>"
+            </div>
+          ) : (
+            <div>
+              <div style={{ padding: '10px 24px 6px', fontFamily: 'Montserrat', fontSize: 11, fontWeight: 700, color: '#6b6b6b', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
+                {searchResults.length} resultado{searchResults.length !== 1 ? 's' : ''} para "{searchQuery}"
+              </div>
+              {searchResults.map(f => {
+                const u = userById(f.userId)
+                const fechaLabel = new Date(f.year, f.month, f.day).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+                return (
+                  <div key={f.id}
+                    onClick={() => { setModal({ type: 'detail', firma: f }); setSearch('') }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '12px 24px', borderBottom: '0.5px solid rgba(0,0,0,0.05)', cursor: 'pointer', transition: 'background 0.1s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f5f4f0'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                  >
+                    <div style={{ width: 4, height: 36, borderRadius: 2, background: u.color, flexShrink: 0 }} />
+                    <Avatar user={u} size={28} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                        <span style={{ fontFamily: 'Montserrat', fontSize: 13, fontWeight: 700, color: '#111' }}>{f.referencia}</span>
+                        {f.hora && <span style={{ fontFamily: 'Montserrat', fontSize: 11, color: '#6b6b6b', background: '#f5f4f0', borderRadius: 4, padding: '1px 6px' }}>{f.hora}</span>}
+                        <span style={{ fontFamily: 'Montserrat', fontSize: 11, color: u.textColor, background: u.bg, borderRadius: 4, padding: '1px 6px' }}>{u.name}</span>
+                      </div>
+                      <div style={{ fontFamily: 'Montserrat', fontSize: 11, color: '#888', textTransform: 'capitalize' }}>
+                        {fechaLabel}
+                        {f.notaria ? ` · ${f.notaria}` : ''}
+                        {f.captador ? ` · ↑ ${f.captador}` : ''}
+                        {f.comprador ? ` · ↓ ${f.comprador}` : ''}
+                      </div>
+                    </div>
+                    <i className="ti ti-chevron-right" style={{ color: '#ccc', fontSize: 16, flexShrink: 0 }} />
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Calendario */}
       <div style={{ margin: '0 24px', background: '#fff', border: '0.5px solid rgba(0,0,0,0.1)', borderTop: 'none', borderRadius: '0 0 12px 12px', overflow: 'hidden' }}>
