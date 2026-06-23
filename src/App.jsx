@@ -158,6 +158,7 @@ function FirmaModal({ day, month, year, onSave, onClose, pin }) {
   const [selUser, setSelUser] = useState(USERS[0].id)
   const [hora, setHora] = useState('')
   const [ref, setRef] = useState('')
+  const [notaria, setNotaria] = useState('')
   const [cap, setCap] = useState('')
   const [com, setCom] = useState('')
   const [saving, setSaving] = useState(false)
@@ -167,7 +168,7 @@ function FirmaModal({ day, month, year, onSave, onClose, pin }) {
     if (!ref.trim()) { setErr('La referencia es obligatoria'); return }
     setSaving(true)
     try {
-      await onSave({ id: uid(), year, month, day, userId: selUser, hora, referencia: ref.trim(), captador: cap.trim(), comprador: com.trim() }, pin)
+      await onSave({ id: uid(), year, month, day, userId: selUser, hora, referencia: ref.trim(), notaria: notaria.trim(), captador: cap.trim(), comprador: com.trim() }, pin)
       onClose()
     } catch (e) {
       setErr(e.message === 'PIN incorrecto' ? 'PIN incorrecto. Inténtalo de nuevo.' : 'Error al guardar. Comprueba la conexión.')
@@ -217,6 +218,10 @@ function FirmaModal({ day, month, year, onSave, onClose, pin }) {
               <label style={styles.label}>Referencia inmueble</label>
               <input type="text" value={ref} onChange={e => { setRef(e.target.value); setErr('') }} placeholder="Ej. 2024-0342" style={styles.input} />
             </div>
+          </div>
+          <div style={{ marginBottom: 12 }}>
+            <label style={styles.label}><i className="ti ti-building" style={{ color: '#6b6b6b', fontSize: 11 }} /> Notaría</label>
+            <input type="text" value={notaria} onChange={e => setNotaria(e.target.value)} placeholder="Ej. Notaría García Martínez" style={styles.input} />
           </div>
           <div style={{ marginBottom: 12 }}>
             <label style={styles.label}><i className="ti ti-arrow-up" style={{ color: '#cf731b', fontSize: 11 }} /> Agente captador</label>
@@ -284,6 +289,7 @@ function DetailModal({ firma, onDelete, onClose, canEdit, pin }) {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {firma.hora && <Row icon="ti-clock" label="Hora" val={firma.hora} />}
+            {firma.notaria && <Row icon="ti-building" label="Notaría" val={firma.notaria} iconColor="#6b6b6b" />}
             {firma.captador && <Row icon="ti-arrow-up" label="Captador" val={firma.captador} iconColor="#cf731b" />}
             {firma.comprador && <Row icon="ti-arrow-down" label="Comprador" val={firma.comprador} iconColor="#185fa5" />}
           </div>
@@ -517,6 +523,11 @@ export default function App() {
                         </span>
                         {f.hora && <span style={{ fontFamily: 'Montserrat', fontSize: 9, color: u.textColor, opacity: 0.75, marginLeft: 'auto', flexShrink: 0 }}>{f.hora}</span>}
                       </div>
+                      {f.notaria && (
+                        <div style={{ fontFamily: 'Montserrat', fontSize: 9, color: u.textColor, opacity: 0.7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          <i className="ti ti-building" style={{ fontSize: 9 }} /> {f.notaria}
+                        </div>
+                      )}
                       {(f.captador || f.comprador) && (
                         <div style={{ fontFamily: 'Montserrat', fontSize: 9, color: u.textColor, opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {[f.captador ? '↑' + f.captador : '', f.comprador ? '↓' + f.comprador : ''].filter(Boolean).join(' · ')}
