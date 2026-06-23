@@ -28,11 +28,18 @@ function useFiremas() {
   const fetchFirmas = useCallback(async () => {
     try {
       const r = await fetch(API)
+      if (!r.ok) {
+        const txt = await r.text().catch(() => r.status)
+        setError('Error API ' + r.status + ': ' + txt.slice(0, 120))
+        setLoading(false)
+        return
+      }
       const json = await r.json()
+      if (json._debug) console.warn('[KV debug]', json._debug)
       setFirmas(json.firmas || [])
       setError(null)
-    } catch {
-      setError('Sin conexión con el servidor')
+    } catch (e) {
+      setError('Red: ' + (e.message || 'sin conexión'))
     } finally {
       setLoading(false)
     }
